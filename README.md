@@ -12,6 +12,6 @@
 ## Usage
 <ul>
   <li><code>> python mars-parse --help</code></li>
-  <li>Example: <code>> mars-parse ".\101 From Mars" ".\Curated 101" C D F</code></li>
+  <li>Example: <code>> mars-parse ".\Samples from Mars" ".\Curated-Mars" C D F</code></li>
   <li><code>> pip install --user . </code></li>
 </ul>
