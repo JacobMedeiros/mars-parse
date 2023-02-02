@@ -25,9 +25,15 @@ def recursive_copy(src_dir, dest_dir, progress, i=0, *, notes=['C'], drum=False)
     with os.scandir(src_dir) as entries:
         for entry in entries:
             if entry.is_dir():
-                # Update progress bar
-                progress.add_task(description=(' ' *i + f'Copying {entry.name}'), total=None)
-                inner_dest_dir = os.path.join(dest_dir, entry.name)
+                # If entry has number, i.e. 01. Bass Drum, omit number
+                name = entry.name.split(' ')
+                if re.search('[0-9]', name[0]) and len(name)>1:
+                    drum = True
+                    entry_name = ' '.join(name[1:])
+                else:
+                    entry_name = entry.name
+                print('\t' *(i+1) + f'Copying {entry_name}')
+                inner_dest_dir = os.path.join(dest_dir, entry_name)
                 recursive_copy(entry.path, inner_dest_dir, progress, i+1, notes=notes, drum=drum)
 
             elif entry.is_file():
@@ -35,38 +41,38 @@ def recursive_copy(src_dir, dest_dir, progress, i=0, *, notes=['C'], drum=False)
                 wav_name = entry.name
                 if not drum:
                     for note in notes:
-                        if re.search(f'_{note.upper()}[0-7]', wav_name):
+                        if re.search(f'{note.upper()}[0-7]', wav_name):
                             shutil.copy(src_path, dest_dir)
-                else:
+                elif re.search('.DS_Store', wav_name) is None:
                     shutil.copy(src_path, dest_dir)
 
 @app.command()
 def main(src_dir: str = typer.Argument(..., help='Source directory of Pack'), 
          dest_dir: str = typer.Argument(..., help='Destination of parsed wav pack'),
-         notes: Optional[List[str]] = typer.Argument(None, help='Note(s) to copy'),
-         drum: bool = typer.Option(False, help="Pack is drum machine, copy all individual hits")):
+         notes: Optional[List[str]] = typer.Argument(None, help='Note(s) to copy')):
     wav_path = ''
-    with os.scandir(src_dir) as entries:
-        # Find wav path
-        for entry in entries:
-            if entry.name.lower() == 'wav' and entry.is_dir():
-                wav_path = entry.path
-                break
-        # Now create list of all directories
-        print(wav_path)
-
-    # Drum machine file structure is different
-    if drum:
-        with os.scandir(wav_path) as entries:
-            # Find individual Drum Hits
-            for entry in entries:
-                if re.search('individual', entry.name.lower()):
-                    wav_path = os.path.join(wav_path, entry.name)
-
-    # Now iterate through all files and copy specified notes
     with Progress(SpinnerColumn(), TextColumn('[progress.description]{task.description}'), transient=True) as progress:
-            recursive_copy(wav_path, dest_dir, progress=progress, i=0, notes=notes, drum =drum)
-    print(drum)
+        with os.scandir(src_dir) as packs:
+            # Find wav path
+            for pack in packs:
+                pack_dest = os.path.join(dest_dir, pack.name)
+                print(f'Copying {pack.name}')
+                if not os.path.exists(pack_dest):
+                    os.mkdir(pack_dest)
+                with os.scandir(pack.path) as entries:
+                    for entry in entries:
+                        if entry.name.lower() == 'wav' and entry.is_dir():
+                            drum = False
+                            wav_path = entry.path
+                            with os.scandir(wav_path) as wav_entries:
+                                for wav_entry in wav_entries:
+                                    if re.search('individual', wav_entry.name.lower()):
+                                        drum = True
+                                        wav_path = wav_entry.path
+
+                            recursive_copy(wav_path, pack_dest, progress=progress, i=0, notes=notes, drum = drum)
+
+
     
 
 def run() -> None:
