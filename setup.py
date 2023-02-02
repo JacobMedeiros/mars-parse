@@ -11,4 +11,7 @@ setup(
     package_dir={'': 'src'},
     install_requires=['typer','rich'],
     license = 'MIT',
+    entry_points={
+            'console_scripts':['mars-parse=mars_parse.mars_parse:run'],
+    }
 )
